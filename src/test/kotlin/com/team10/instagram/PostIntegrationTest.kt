@@ -3,12 +3,15 @@ package com.team10.instagram
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.team10.instagram.domain.post.dto.PostCreateRequest
 import com.team10.instagram.domain.post.dto.PostUpdateRequest
+import com.team10.instagram.domain.post.model.Bookmark
+import com.team10.instagram.domain.post.model.PostLike
 import com.team10.instagram.domain.post.repository.BookmarkRepository
 import com.team10.instagram.domain.post.repository.PostLikeRepository
 import com.team10.instagram.domain.post.repository.PostRepository
 import com.team10.instagram.domain.user.model.User
 import com.team10.instagram.helper.DataGenerator
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -26,6 +29,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.transaction.annotation.Transactional
+import java.util.concurrent.Executors
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -128,6 +132,74 @@ class PostIntegrationTest
                     get("/api/v1/posts/$notExistPostId")
                         .header("Authorization", token),
                 ).andExpect(status().isNotFound) // 404 Not Found
+        }
+
+        @Test
+        fun `특정 유저의 게시글 목록을 조회할 수 있다`() {
+            // given
+            val user = myUser
+            val token = myToken
+            val otherUser = dataGenerator.generateUser(nickname = "other")
+
+            val post1 = dataGenerator.generatePost(user = otherUser, content = "첫 번째 게시글")
+            val post2 = dataGenerator.generatePost(user = otherUser, content = "두 번째 게시글")
+
+            postLikeRepository.save(PostLike(postId = post2.id!!, userId = user.userId!!))
+
+            val stranger = dataGenerator.generateUser(nickname = "stranger")
+            dataGenerator.generatePost(user = stranger, content = "남의 글")
+
+            // when
+            mvc
+                .perform(
+                    get("/api/v1/users/${otherUser.userId}/posts")
+                        .header("Authorization", myToken)
+                        .contentType(MediaType.APPLICATION_JSON),
+                )
+                // then
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.posts").isArray)
+                .andExpect(jsonPath("$.data.posts.length()").value(2))
+                // Check sort by time (Lastest comment is first)
+                .andExpect(jsonPath("$.data.posts[0].id").value(post2.id))
+                .andExpect(jsonPath("$.data.posts[1].id").value(post1.id))
+                .andExpect(jsonPath("$.data.posts[0].content").value("두 번째 게시글"))
+                .andExpect(jsonPath("$.data.posts[0].isLiked").value(true))
+                .andExpect(jsonPath("$.data.posts[1].isLiked").value(false))
+        }
+
+        @Test
+        fun `게시글이 없는 유저를 조회하면 빈 리스트가 반환된다`() {
+            // given
+            val user = myUser
+            val token = myToken
+            val otherUser = dataGenerator.generateUser(nickname = "other")
+
+            // when
+            mvc
+                .perform(
+                    get("/api/v1/users/${otherUser.userId}/posts")
+                        .header("Authorization", myToken),
+                )
+                // then
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.posts").isArray)
+                .andExpect(jsonPath("$.data.posts").isEmpty())
+        }
+
+        @Test
+        fun `존재하지 않는 유저의 게시글을 조회하면 실패한다`() {
+            // given
+            val invalidUserId = 99999L
+
+            // when
+            mvc
+                .perform(
+                    get("/api/v1/users/$invalidUserId/posts")
+                        .header("Authorization", myToken),
+                )
+                // then
+                .andExpect(status().isNotFound)
         }
 
         @Test
@@ -289,5 +361,154 @@ class PostIntegrationTest
 
             val exists = bookmarkRepository.existsByPostIdAndUserId(post.id!!, user.userId!!)
             assertTrue(!exists)
+        }
+    }
+
+@SpringBootTest
+@AutoConfigureMockMvc
+class PostConcurrencyTest
+    @Autowired
+    constructor(
+        private val mvc: MockMvc,
+        private val dataGenerator: DataGenerator,
+        private val postLikeRepository: PostLikeRepository,
+        @Autowired private val bookmarkRepository: BookmarkRepository,
+    ) {
+        @Test
+        fun `게시글에 좋아요 등록을 동시에 여러 번 해도 좋아요 수는 1만 올라간다`() {
+            // given
+            val threadPool = Executors.newFixedThreadPool(4)
+            val post = dataGenerator.generatePost(user = dataGenerator.generateUser())
+            val user = dataGenerator.generateUser()
+            val token = "Bearer ${dataGenerator.generateToken(user)}"
+
+            // when
+            val jobs =
+                List(4) {
+                    threadPool.submit {
+                        mvc
+                            .perform(
+                                post("/api/v1/posts/${post.id}/like")
+                                    .header("Authorization", token)
+                                    .contentType(MediaType.APPLICATION_JSON),
+                            ).andExpect(status().isOk)
+                    }
+                }
+            jobs.forEach { it.get() }
+
+            // then
+            mvc
+                .perform(
+                    get("/api/v1/posts/${post.id}")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.likeCount").value(1))
+        }
+
+        @Test
+        fun `게시글에 좋아요 취소를 동시에 여러 번 해도 좋아요 수는 1만 내려간다`() {
+            // given
+            val threadPool = Executors.newFixedThreadPool(4)
+            val post = dataGenerator.generatePost(user = dataGenerator.generateUser())
+            val user1 = dataGenerator.generateUser()
+            val token1 = "Bearer ${dataGenerator.generateToken(user1)}"
+            val user2 = dataGenerator.generateUser()
+            val token2 = "Bearer ${dataGenerator.generateToken(user2)}"
+
+            postLikeRepository.save(PostLike(postId = post.id!!, userId = user1.userId!!))
+            postLikeRepository.save(PostLike(postId = post.id, userId = user2.userId!!))
+
+            // when
+            val jobs =
+                List(4) {
+                    threadPool.submit {
+                        mvc.perform(
+                            delete("/api/v1/posts/${post.id}/like")
+                                .header("Authorization", token1)
+                                .contentType(MediaType.APPLICATION_JSON),
+                        )
+                    }
+                }
+            jobs.forEach { it.get() }
+
+            // then
+            mvc
+                .perform(
+                    get("/api/v1/posts/${post.id}")
+                        .header("Authorization", token1)
+                        .contentType(MediaType.APPLICATION_JSON),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.likeCount").value(1))
+        }
+
+        @Test
+        fun `게시글 북마크를 동시에 여러 번 해도 한 번만 적용된다`() {
+            // given
+            val threadPool = Executors.newFixedThreadPool(4)
+            val post = dataGenerator.generatePost(user = dataGenerator.generateUser())
+            val user = dataGenerator.generateUser()
+            val token = "Bearer ${dataGenerator.generateToken(user)}"
+
+            // when
+            val jobs =
+                List(4) {
+                    threadPool.submit {
+                        mvc
+                            .perform(
+                                post("/api/v1/posts/{postId}/bookmark", post.id)
+                                    .header("Authorization", token)
+                                    .contentType(MediaType.APPLICATION_JSON),
+                            ).andExpect(status().isOk)
+                    }
+                }
+
+            jobs.forEach { it.get() }
+
+            // then
+            mvc
+                .perform(
+                    get("/api/v1/posts/{postId}", post.id)
+                        .header("Authorization", token),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.isBookmarked").value(true))
+
+            val count = bookmarkRepository.count()
+            assertTrue(bookmarkRepository.existsByPostIdAndUserId(post.id!!, user.userId!!))
+        }
+
+        @Test
+        fun `게시글 북마크 취소를 동시에 여러 번 해도 취소는 한 번만 적용된다`() {
+            // given
+            val threadPool = Executors.newFixedThreadPool(4)
+            val post = dataGenerator.generatePost(user = dataGenerator.generateUser())
+            val user = dataGenerator.generateUser()
+            val token = "Bearer ${dataGenerator.generateToken(user)}"
+
+            bookmarkRepository.save(Bookmark(postId = post.id!!, userId = user.userId!!))
+
+            // when
+            val jobs =
+                List(4) {
+                    threadPool.submit {
+                        mvc
+                            .perform(
+                                delete("/api/v1/posts/{postId}/bookmark", post.id)
+                                    .header("Authorization", token)
+                                    .contentType(MediaType.APPLICATION_JSON),
+                            ).andExpect(status().isOk)
+                    }
+                }
+            jobs.forEach { it.get() }
+
+            // then
+            mvc
+                .perform(
+                    get("/api/v1/posts/{postId}", post.id)
+                        .header("Authorization", token),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.isBookmarked").value(false))
+
+            assertFalse(bookmarkRepository.existsByPostIdAndUserId(post.id, user.userId))
         }
     }
