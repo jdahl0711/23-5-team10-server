@@ -1,7 +1,6 @@
 package com.team10.instagram.global.config
 
 import com.team10.instagram.domain.auth.jwt.JwtAuthenticationFilter
-import com.team10.instagram.domain.auth.jwt.JwtTokenProvider
 import com.team10.instagram.domain.auth.jwt.OAuth2LoginSuccessHandler
 import com.team10.instagram.domain.auth.service.CustomOAuth2UserService
 import jakarta.servlet.http.HttpServletResponse
@@ -22,7 +21,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val customOAuth2UserService: CustomOAuth2UserService,
-    private val oAuth2LoginSuccessHandler: OAuth2LoginSuccessHandler
+    private val oAuth2LoginSuccessHandler: OAuth2LoginSuccessHandler,
 ) {
     @Bean
     fun passwordEncoder(): PasswordEncoder = BCryptPasswordEncoder()
@@ -53,21 +52,18 @@ class SecurityConfig(
                 it.requestMatchers("/oauth2/**", "/login/**").permitAll()
                 // 나머지 요청은 인증 필요
                 it.anyRequest().authenticated()
-            }
-            .oauth2Login {
-                it.userInfoEndpoint {
-                    userInfo -> userInfo.userService(customOAuth2UserService)
-                }
-                    .successHandler(oAuth2LoginSuccessHandler)
-                    .failureHandler {
-                        _, response, exception ->
+            }.oauth2Login {
+                it
+                    .userInfoEndpoint { userInfo ->
+                        userInfo.userService(customOAuth2UserService)
+                    }.successHandler(oAuth2LoginSuccessHandler)
+                    .failureHandler { _, response, exception ->
                         response.sendError(
                             HttpServletResponse.SC_UNAUTHORIZED,
-                            exception.message ?: "OAuth authentication failed"
+                            exception.message ?: "OAuth authentication failed",
                         )
                     }
-            }
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
+            }.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
         return http.build()
     }
 
