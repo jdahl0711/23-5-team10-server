@@ -70,6 +70,20 @@ class PostService(
     }
 
     @Transactional(readOnly = true)
+    fun getPostsByUserId(
+        currentUser: User,
+        targetUserId: Long,
+    ): List<PostResponse> {
+        if (!userRepository.existsById(targetUserId)) {
+            throw CustomException(ErrorCode.USER_NOT_FOUND)
+        }
+
+        val posts = postRepository.findAllByUserIdOrderByCreatedAtDesc(targetUserId)
+
+        return posts.map { convertToDto(it, currentUser) }
+    }
+
+    @Transactional(readOnly = true)
     fun getBookmarkedPosts(user: User): List<PostResponse> {
         val bookmarks = bookmarkRepository.findAllByUserId(user.userId!!)
         val posts =
@@ -124,11 +138,17 @@ class PostService(
         user: User,
         postId: Long,
     ) {
-        if (!postRepository.existsById(postId)) throw CustomException(ErrorCode.POST_NOT_FOUND)
-
-        if (!postLikeRepository.existsByPostIdAndUserId(postId, user.userId!!)) {
-            postLikeRepository.save(PostLike(postId = postId, userId = user.userId))
+        // Apply pessimistic lock: Queueing duplicate requests
+        if (postRepository.findByIdWithLock(postId) == null) {
+            throw CustomException(ErrorCode.POST_NOT_FOUND)
         }
+
+        // return 200 OK for duplicate requests
+        if (postLikeRepository.existsByPostIdAndUserId(postId, user.userId!!)) {
+            return
+        }
+
+        postLikeRepository.save(PostLike(postId = postId, userId = user.userId))
     }
 
     @Transactional
@@ -147,11 +167,17 @@ class PostService(
         user: User,
         postId: Long,
     ) {
-        if (!postRepository.existsById(postId)) throw CustomException(ErrorCode.POST_NOT_FOUND)
-
-        if (!bookmarkRepository.existsByPostIdAndUserId(postId, user.userId!!)) {
-            bookmarkRepository.save(Bookmark(postId = postId, userId = user.userId))
+        // Apply pessimistic lock: Queueing duplicate requests
+        if (postRepository.findByIdWithLock(postId) == null) {
+            throw CustomException(ErrorCode.POST_NOT_FOUND)
         }
+
+        // return 200 OK for duplicate requests
+        if (bookmarkRepository.existsByPostIdAndUserId(postId, user.userId!!)) {
+            return
+        }
+
+        bookmarkRepository.save(Bookmark(postId = postId, userId = user.userId))
     }
 
     @Transactional
