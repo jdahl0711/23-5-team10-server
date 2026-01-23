@@ -2,7 +2,9 @@ package com.team10.instagram.global.config
 
 import com.team10.instagram.domain.auth.jwt.JwtAuthenticationFilter
 import com.team10.instagram.domain.auth.jwt.OAuth2LoginSuccessHandler
+import com.team10.instagram.domain.auth.service.AuthService
 import com.team10.instagram.domain.auth.service.CustomOAuth2UserService
+import jakarta.servlet.http.Cookie
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -22,6 +24,7 @@ class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val customOAuth2UserService: CustomOAuth2UserService,
     private val oAuth2LoginSuccessHandler: OAuth2LoginSuccessHandler,
+    private val authService: AuthService,
 ) {
     @Bean
     fun passwordEncoder(): PasswordEncoder = BCryptPasswordEncoder()
@@ -62,6 +65,29 @@ class SecurityConfig(
                             HttpServletResponse.SC_UNAUTHORIZED,
                             exception.message ?: "OAuth authentication failed",
                         )
+                    }
+            }.logout {
+                it
+                    .logoutUrl("/logout")
+                    .logoutSuccessHandler { request, response, _ ->
+                        val accessToken =
+                            request
+                                .getHeader("Authorization")
+                                ?.removePrefix("Bearer ")
+
+                        if (accessToken != null) {
+                            authService.logout(accessToken)
+                        }
+
+                        val cookie =
+                            Cookie("refreshToken", "").apply {
+                                maxAge = 0
+                                path = "/"
+                                secure = true
+                                isHttpOnly = true
+                            }
+                        response.addCookie(cookie)
+                        response.status = HttpServletResponse.SC_OK
                     }
             }.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
         return http.build()
