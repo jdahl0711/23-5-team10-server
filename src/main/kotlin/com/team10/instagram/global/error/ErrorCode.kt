@@ -32,4 +32,6 @@ enum class ErrorCode(
 
     // 팔로우 관련 에러
     SELF_FOLLOW_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "FOLLOW_400_1", "자기 자신은 팔로우할 수 없습니다."),
+
+    OAUTH_AUTHENTICATION_FAILED(HttpStatus.UNAUTHORIZED, "401", "OAuth 인증에 실패했습니다."),
 }
