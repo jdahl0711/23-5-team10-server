@@ -4,6 +4,8 @@ import com.team10.instagram.domain.comment.dto.CommentCreateRequest
 import com.team10.instagram.domain.comment.dto.CommentResponse
 import com.team10.instagram.domain.comment.dto.CommentUpdateRequest
 import com.team10.instagram.domain.comment.model.Comment
+import com.team10.instagram.domain.comment.model.CommentLike
+import com.team10.instagram.domain.comment.repository.CommentLikeRepository
 import com.team10.instagram.domain.comment.repository.CommentRepository
 import com.team10.instagram.domain.post.repository.PostRepository
 import com.team10.instagram.domain.user.model.User
@@ -20,6 +22,7 @@ class CommentService(
     private val commentRepository: CommentRepository,
     private val postRepository: PostRepository,
     private val userRepository: UserRepository,
+    private val commentLikeRepository: CommentLikeRepository,
 ) {
     @Transactional
     fun create(
@@ -43,11 +46,14 @@ class CommentService(
             )
 
         val savedComment = commentRepository.save(comment)
-        return convertToDto(savedComment, user)
+        return convertToDto(savedComment, user, user)
     }
 
     @Transactional(readOnly = true)
-    fun getCommentsByPostId(postId: Long): List<CommentResponse> {
+    fun getCommentsByPostId(
+        currentUser: User,
+        postId: Long,
+    ): List<CommentResponse> {
         if (!postRepository.existsById(postId)) {
             throw CustomException(ErrorCode.POST_NOT_FOUND)
         }
@@ -57,7 +63,7 @@ class CommentService(
             val writer =
                 userRepository.findByUserId(comment.userId)
                     ?: throw CustomException(ErrorCode.USER_NOT_FOUND)
-            convertToDto(comment, writer)
+            convertToDto(comment, writer, currentUser)
         }
     }
 
@@ -80,7 +86,7 @@ class CommentService(
         val updatedComment = comment.copy(content = request.content)
         val saved = commentRepository.save(updatedComment)
 
-        return convertToDto(saved, user)
+        return convertToDto(saved, user, user)
     }
 
     @Transactional
@@ -97,18 +103,61 @@ class CommentService(
         commentRepository.delete(comment)
     }
 
+    @Transactional
+    fun likeComment(
+        user: User,
+        commentId: Long,
+    ) {
+        // Apply pessimistic lock: Queueing duplicate requests
+        val comment =
+            commentRepository.findByIdWithLock(commentId)
+                ?: throw CustomException(ErrorCode.COMMENT_NOT_FOUND)
+
+        // return 200 OK for duplicate requests
+        if (commentLikeRepository.existsByCommentIdAndUserId(commentId, user.userId!!)) {
+            return
+        }
+
+        commentLikeRepository.save(CommentLike(commentId = commentId, userId = user.userId))
+    }
+
+    @Transactional
+    fun unlikeComment(
+        user: User,
+        commentId: Long,
+    ) {
+        if (!commentRepository.existsById(commentId)) throw CustomException(ErrorCode.COMMENT_NOT_FOUND)
+
+        val like = commentLikeRepository.findByCommentIdAndUserId(commentId, user.userId!!)
+        if (like != null) commentLikeRepository.delete(like)
+    }
+
     private fun convertToDto(
         comment: Comment,
         writer: User,
-    ): CommentResponse =
-        CommentResponse(
-            id = comment.id!!,
+        currentUser: User?,
+    ): CommentResponse {
+        val likeCount = commentLikeRepository.countByCommentId(comment.id!!)
+
+        val isLiked =
+            currentUser?.let {
+                commentLikeRepository.existsByCommentIdAndUserId(comment.id, it.userId!!)
+            } ?: false
+
+        val likedUserIds = commentLikeRepository.findUserIdsByCommentId(comment.id)
+
+        return CommentResponse(
+            id = comment.id,
             postId = comment.postId,
             userId = writer.userId!!,
             nickname = writer.nickname,
-            profileImageUrl = writer.profileImageUrl,
             content = comment.content,
+            profileImageUrl = writer.profileImageUrl,
+            likeCount = likeCount,
+            isLiked = isLiked,
+            likedUserIds = likedUserIds,
             createdAt = comment.createdAt ?: LocalDateTime.now(),
             updatedAt = comment.updatedAt ?: LocalDateTime.now(),
         )
+    }
 }
