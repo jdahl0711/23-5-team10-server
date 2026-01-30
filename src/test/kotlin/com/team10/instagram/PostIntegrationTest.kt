@@ -158,14 +158,14 @@ class PostIntegrationTest
                 )
                 // then
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.data.posts").isArray)
-                .andExpect(jsonPath("$.data.posts.length()").value(2))
-                // Check sort by time (Lastest comment is first)
-                .andExpect(jsonPath("$.data.posts[0].id").value(post2.id))
-                .andExpect(jsonPath("$.data.posts[1].id").value(post1.id))
-                .andExpect(jsonPath("$.data.posts[0].content").value("두 번째 게시글"))
-                .andExpect(jsonPath("$.data.posts[0].isLiked").value(true))
-                .andExpect(jsonPath("$.data.posts[1].isLiked").value(false))
+                .andExpect(jsonPath("$.data").isArray)
+                .andExpect(jsonPath("$.data.length()").value(2))
+                // Check sort by time (Latest post is first)
+                .andExpect(jsonPath("$.data[0].id").value(post2.id))
+                .andExpect(jsonPath("$.data[1].id").value(post1.id))
+                .andExpect(jsonPath("$.data[0].content").value("두 번째 게시글"))
+                .andExpect(jsonPath("$.data[0].isLiked").value(true))
+                .andExpect(jsonPath("$.data[1].isLiked").value(false))
         }
 
         @Test
@@ -183,8 +183,8 @@ class PostIntegrationTest
                 )
                 // then
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.data.posts").isArray)
-                .andExpect(jsonPath("$.data.posts").isEmpty())
+                .andExpect(jsonPath("$.data").isArray)
+                .andExpect(jsonPath("$.data").isEmpty())
         }
 
         @Test
