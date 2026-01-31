@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
@@ -34,24 +35,28 @@ class AlbumController(
         return ApiResponse.onSuccess(albumId)
     }
 
-    // 2. 내 앨범 목록 조회
-    @GetMapping("/my")
-    @Operation(summary = "내 앨범 목록 조회", description = "내 앨범의 목록을 조회합니다.")
-    fun getMyAlbums(
-        @LoggedInUser loggedInUser: Long,
+    // 2. 특정 유저 앨범 목록 조회
+    @GetMapping("/users/{userId}")
+    @Operation(summary = "유저 앨범 목록 조회", description = "특정 유저(본인 포함)의 앨범 목록을 조회합니다.")
+    fun getUserAlbums(
+        @PathVariable userId: Long, // 대상 album 주인
     ): ApiResponse<List<AlbumResponse>> {
-        val albums = albumService.getMyAlbums(loggedInUser)
+        val albums = albumService.getAlbumsByUserId(userId)
         return ApiResponse.onSuccess(albums)
     }
 
-    // 3. 앨범 상세 조회 (게시글 목록)
+    // 3. 앨범 상세 조회
     @GetMapping("/{albumId}")
-    @Operation(summary = "앨범 상세 조회", description = "해당 앨범에 포함된 게시글 목록을 조회합니다.")
+    @Operation(summary = "앨범 상세 조회", description = "앨범 ID가 -1일 경우, ownerId를 함께 보내면 해당 유저의 미지정 게시글을 조회합니다.")
     fun getAlbumDetail(
         @LoggedInUser loggedInUser: Long,
         @PathVariable albumId: Long,
+        @RequestParam(required = false) ownerId: Long?, // 누구 앨범인지 명시 (선택)
     ): ApiResponse<AlbumDetailResponse> {
-        val albumDetails = albumService.getAlbumDetail(loggedInUser, albumId)
+        // ownerId가 없으면 loggedInUser로 간주
+        val targetUserId = ownerId ?: loggedInUser
+
+        val albumDetails = albumService.getAlbumDetail(targetUserId, albumId)
         return ApiResponse.onSuccess(albumDetails)
     }
 

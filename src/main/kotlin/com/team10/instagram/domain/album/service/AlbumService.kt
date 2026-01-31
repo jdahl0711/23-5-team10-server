@@ -26,20 +26,21 @@ class AlbumService(
         return albumRepository.save(userId, request.title)
     }
 
-    // 2. 내 앨범 목록 조회
-    fun getMyAlbums(userId: Long): List<AlbumResponse> = albumRepository.findAllByUserId(userId)
+    // 2. 특정 유저의 앨범 목록 조회
+    @Transactional(readOnly = true)
+    fun getAlbumsByUserId(targetUserId: Long): List<AlbumResponse> = albumRepository.findAllByUserId(targetUserId)
 
     // 3. 앨범 상세 조회
+    @Transactional(readOnly = true)
     fun getAlbumDetail(
-        userId: Long,
+        targetUserId: Long, // 앨범 주인 ID
         albumId: Long,
     ): AlbumDetailResponse {
-        // 1. '앨범 없음(-1)' 앨범 요청인 경우
+        // 1. '앨범 없음(-1)' 요청인 경우
         if (albumId == -1L) {
-            // DB에서 album_id가 NULL인 게시글들을 조회
-            val posts = albumRepository.findUnassignedPosts(userId)
+            // targetUserId의 글을 가져옴
+            val posts = albumRepository.findUnassignedPosts(targetUserId)
 
-            // 가짜 앨범 객체를 만들어서 반환
             return AlbumDetailResponse(
                 albumId = -1L,
                 title = "앨범 없음",
@@ -51,8 +52,6 @@ class AlbumService(
         val album =
             albumRepository.findById(albumId)
                 ?: throw CustomException(ErrorCode.ALBUM_NOT_FOUND)
-
-        validateAlbumOwner(userId, albumId)
 
         val posts = albumRepository.findPostsByAlbumId(albumId)
 

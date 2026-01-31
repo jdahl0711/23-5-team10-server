@@ -57,23 +57,16 @@ class AlbumRepository(
         val unassignedAlbum =
             jdbcTemplate.queryForObject(unassignedSql, { rs, _ ->
                 val count = rs.getInt("post_count")
-                if (count > 0) {
-                    AlbumResponse(
-                        albumId = -1L,
-                        title = "앨범 없음",
-                        thumbnailImageUrl = rs.getString("thumbnail_image_url"),
-                        postCount = count,
-                    )
-                } else {
-                    null
-                }
+
+                AlbumResponse(
+                    albumId = -1L,
+                    title = "앨범 없음",
+                    thumbnailImageUrl = rs.getString("thumbnail_image_url"),
+                    postCount = count,
+                )
             }, userId, userId)
 
-        return if (unassignedAlbum != null) {
-            listOf(unassignedAlbum) + realAlbums
-        } else {
-            realAlbums
-        }
+        return listOf(unassignedAlbum!!) + realAlbums
     }
 
     // 3. 앨범 단건 조회 (제목 등 기본 정보) -> 검증용

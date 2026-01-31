@@ -65,12 +65,12 @@ class AlbumIntegrationTest
         }
 
         @Test
-        fun `내 앨범 목록을 조회할 수 있다`() {
+        fun `특정 유저(나)의 앨범 목록을 조회할 수 있다`() {
             // given
             val albumId1 = dataGenerator.generateAlbum(myUser, "맛집 모음")
             val albumId2 = dataGenerator.generateAlbum(myUser, "풍경 사진")
 
-            // 앨범1에 게시글 추가 (썸네일 검증용)
+            // 앨범1에 게시글 추가
             val post1 = dataGenerator.generatePost(myUser, images = listOf("http://thumb1.com"))
             val post2 = dataGenerator.generatePost(myUser, images = listOf("http://thumb2.com"))
 
@@ -80,14 +80,38 @@ class AlbumIntegrationTest
             // when & then
             mvc
                 .perform(
-                    get("/api/v1/albums/my")
+                    get("/api/v1/albums/users/${myUser.userId}")
                         .header("Authorization", myToken),
                 ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.data.length()").value(2))
-                // 최신순 정렬 확인 (풍경 사진이 나중에 생성됨)
-                .andExpect(jsonPath("$.data[0].title").value("풍경 사진"))
-                .andExpect(jsonPath("$.data[1].title").value("맛집 모음"))
-                .andExpect(jsonPath("$.data[1].postCount").value(2))
+                // '앨범 없음'이 항상 포함되므로 총 개수는 3개
+                .andExpect(jsonPath("$.data.length()").value(3))
+                // 0번째는 무조건 '앨범 없음' (게시글 없으므로 count 0)
+                .andExpect(jsonPath("$.data[0].title").value("앨범 없음"))
+                .andExpect(jsonPath("$.data[0].postCount").value(0))
+                // 그 뒤로 최신순 정렬 (풍경 사진 -> 맛집 모음)
+                .andExpect(jsonPath("$.data[1].title").value("풍경 사진"))
+                .andExpect(jsonPath("$.data[2].title").value("맛집 모음"))
+                .andExpect(jsonPath("$.data[2].postCount").value(2))
+        }
+
+        @Test
+        fun `타인의 앨범 목록을 조회할 수 있다`() {
+            // given
+            val otherUser = dataGenerator.generateUser(nickname = "other")
+            dataGenerator.generateAlbum(otherUser, "타인의 앨범")
+            // 타인의 미지정 게시글 생성 (-1번 앨범 확인용)
+            dataGenerator.generatePost(otherUser)
+
+            // when & then
+            mvc
+                .perform(
+                    get("/api/v1/albums/users/${otherUser.userId}")
+                        .header("Authorization", myToken),
+                ).andDo(print())
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.length()").value(2)) // 앨범 없음 + 타인의 앨범
+                .andExpect(jsonPath("$.data[0].title").value("앨범 없음"))
+                .andExpect(jsonPath("$.data[1].title").value("타인의 앨범"))
         }
 
         @Test
@@ -220,10 +244,8 @@ class AlbumIntegrationTest
         fun `이미 존재하는 앨범 이름으로 생성하면 실패한다`() {
             // given
             val duplicateTitle = "제주도 여행"
-
             dataGenerator.generateAlbum(myUser, duplicateTitle)
 
-            // 똑같은 이름으로 생성 요청 객체 만들기
             val request = AlbumCreateRequest(title = duplicateTitle)
 
             // when & then
@@ -234,7 +256,7 @@ class AlbumIntegrationTest
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)),
                 ).andDo(print())
-                .andExpect(status().isConflict) // 409 Conflict 확인
+                .andExpect(status().isConflict)
                 .andExpect(jsonPath("$.code").value("ALBUM_ALREADY_EXISTS"))
         }
 
@@ -243,7 +265,6 @@ class AlbumIntegrationTest
             // given
             val albumAId = dataGenerator.generateAlbum(myUser, "앨범 A")
             val albumBId = dataGenerator.generateAlbum(myUser, "앨범 B")
-
             val post = dataGenerator.generatePost(myUser)
 
             albumRepository.updatePostAlbum(post.id!!, albumBId)
@@ -279,80 +300,92 @@ class AlbumIntegrationTest
         @Test
         fun `앨범에 속하지 않은 게시글이 있으면 '앨범 없음' 앨범으로 조회된다`() {
             // given
-            // 1. 일반 앨범 생성
             dataGenerator.generateAlbum(myUser, "내 앨범")
-
-            // 2. 앨범에 속하지 않은 게시글 생성 (album_id = null)
-            val unassignedPost = dataGenerator.generatePost(myUser, images = listOf("http://no-album.com"))
+            dataGenerator.generatePost(myUser, images = listOf("http://no-album.com")) // 미지정
 
             // when
             mvc
                 .perform(
-                    get("/api/v1/albums/my")
+                    get("/api/v1/albums/users/${myUser.userId}")
                         .header("Authorization", myToken),
                 ).andDo(print())
                 .andExpect(status().isOk)
-                // then
-                // 1. 전체 개수는 2개여야 함 (앨범 없음 + 내 앨범)
                 .andExpect(jsonPath("$.data.length()").value(2))
                 // 2. 맨 첫 번째(0번 인덱스)가 '앨범 없음' 앨범이어야 함
                 .andExpect(jsonPath("$.data[0].albumId").value(-1)) // 약속된 ID -1
                 .andExpect(jsonPath("$.data[0].title").value("앨범 없음"))
-                .andExpect(jsonPath("$.data[0].postCount").value(1))
-                .andExpect(jsonPath("$.data[0].thumbnailImageUrl").value("http://no-album.com"))
-                // 3. 두 번째는 내가 만든 앨범
                 .andExpect(jsonPath("$.data[1].title").value("내 앨범"))
         }
 
         @Test
-        fun `앨범 미지정 게시글이 없으면 '앨범 없음' 앨범은 보이지 않는다`() {
+        fun `앨범 미지정 게시글이 없어도 '앨범 없음' 앨범은 항상 보인다`() {
             // given
             val albumId = dataGenerator.generateAlbum(myUser, "내 앨범")
             val post = dataGenerator.generatePost(myUser)
-            // 게시글을 앨범에 넣어버림 -> 미지정 게시글 0개
+            // 게시글을 앨범에 넣음 -> 미지정 게시글 0개
             albumRepository.updatePostAlbum(post.id!!, albumId)
 
             // when
             mvc
                 .perform(
-                    get("/api/v1/albums/my")
+                    get("/api/v1/albums/users/${myUser.userId}")
                         .header("Authorization", myToken),
                 ).andDo(print())
                 .andExpect(status().isOk)
                 // then
-                // 1. 전체 개수는 1개 (내 앨범만)
-                .andExpect(jsonPath("$.data.length()").value(1))
-                // 2. '기타' 앨범(-1)은 없어야 함
-                .andExpect(jsonPath("$.data[?(@.albumId == -1)]").doesNotExist())
+                // 내 앨범 1개 + 빈 '앨범 없음' 1개 = 총 2개
+                .andExpect(jsonPath("$.data.length()").value(2))
+                // '앨범 없음' 폴더가 0번째에 존재
+                .andExpect(jsonPath("$.data[0].albumId").value(-1))
+                .andExpect(jsonPath("$.data[0].title").value("앨범 없음"))
+                .andExpect(jsonPath("$.data[0].postCount").value(0)) // 개수는 0개
+                // 1번째는 내 앨범
+                .andExpect(jsonPath("$.data[1].title").value("내 앨범"))
         }
 
         @Test
-        fun `'앨범 없음(-1)' 상세 조회 시, 앨범에 속하지 않은 게시글 목록이 반환된다`() {
+        fun `'앨범 없음(-1)' 상세 조회 시, 나의 미지정 게시글 목록이 반환된다`() {
             // given
-            // 1. 미지정 게시글 2개 생성
             val post1 = dataGenerator.generatePost(myUser, images = listOf("http://img1.com"))
             val post2 = dataGenerator.generatePost(myUser, images = listOf("http://img2.com"))
 
-            // 2. 일반 앨범에 속한 게시글 1개 생성
-            val albumId = dataGenerator.generateAlbum(myUser)
-            val assignedPost = dataGenerator.generatePost(myUser)
-            albumRepository.updatePostAlbum(assignedPost.id!!, albumId)
-
             // when
+            // ownerId 파라미터가 없으면 '내 것'으로 동작
             mvc
                 .perform(
-                    get("/api/v1/albums/-1") // 약속된 ID -1 호출
+                    get("/api/v1/albums/-1")
                         .header("Authorization", myToken),
                 ).andDo(print())
                 .andExpect(status().isOk)
-                // then
-                .andExpect(jsonPath("$.data.title").value("앨범 없음")) // 타이틀 확인
-                .andExpect(jsonPath("$.data.albumId").value(-1))
-                .andExpect(jsonPath("$.data.posts.length()").value(2)) // 미지정 게시글 2개만 나와야 함
-                // 최신순 정렬 확인 (post2가 나중에 생성됨)
+                .andExpect(jsonPath("$.data.title").value("앨범 없음"))
+                .andExpect(jsonPath("$.data.posts.length()").value(2))
                 .andExpect(jsonPath("$.data.posts[0].postId").value(post2.id))
                 .andExpect(jsonPath("$.data.posts[0].imageUrl").value("http://img2.com"))
                 .andExpect(jsonPath("$.data.posts[1].postId").value(post1.id))
+        }
+
+        @Test
+        fun `타인의 '앨범 없음(-1)' 상세 조회 시, 해당 유저의 미지정 게시글이 반환된다`() {
+            // given
+            val otherUser = dataGenerator.generateUser(nickname = "other")
+            val otherPost = dataGenerator.generatePost(otherUser, images = listOf("http://other.com"))
+
+            // 내 미지정 게시글
+            dataGenerator.generatePost(myUser, images = listOf("http://me.com"))
+
+            // when
+            // ?ownerId={otherUserId} 파라미터 전달
+            mvc
+                .perform(
+                    get("/api/v1/albums/-1")
+                        .param("ownerId", otherUser.userId.toString())
+                        .header("Authorization", myToken),
+                ).andDo(print())
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.title").value("앨범 없음"))
+                .andExpect(jsonPath("$.data.posts.length()").value(1))
+                // 타인의 게시글만 보여야 함
+                .andExpect(jsonPath("$.data.posts[0].imageUrl").value("http://other.com"))
         }
 
         @Test
