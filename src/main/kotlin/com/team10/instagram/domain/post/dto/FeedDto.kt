@@ -19,8 +19,8 @@ data class FeedPostDto(
     val likeCount: Long,
     val commentCount: Long,
     val createdAt: LocalDateTime,
-    val liked: Boolean,
-    val bookmarked: Boolean,
+    val isLiked: Boolean,
+    val isBookmarked: Boolean,
 )
 
 data class FeedAuthorDto(

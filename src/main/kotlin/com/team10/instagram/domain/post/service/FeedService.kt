@@ -81,8 +81,8 @@ class FeedService(
                     likeCount = likeCount,
                     commentCount = commentCount,
                     createdAt = post.createdAt!!,
-                    liked = isLiked,
-                    bookmarked = isBookmarked,
+                    isLiked = isLiked,
+                    isBookmarked = isBookmarked,
                 )
             }
 
