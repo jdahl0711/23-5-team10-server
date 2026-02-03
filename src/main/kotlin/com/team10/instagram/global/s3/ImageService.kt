@@ -14,8 +14,17 @@ class ImageService(
     private val bucket: String,
 ) {
     fun upload(files: List<MultipartFile>): List<String> {
+        // 허용 확장자(MIME)
+        val allowedMimeTypes = listOf("image/jpeg", "image/png", "image/gif", "image/webp")
+
         // 들어온 파일들을 하나씩 꺼내서 S3에 올리고, URL들을 모아서 반환
         return files.map { file ->
+            // 확장자(MIME Type) 검사
+            val contentType = file.contentType
+            if (contentType == null || !allowedMimeTypes.contains(contentType)) {
+                throw IllegalArgumentException("지원하지 않는 파일 형식입니다. (파일명: ${file.originalFilename})")
+            }
+
             // 1. 파일 이름 중복 방지 (UUID 사용)
             // 예: originalFilename = "my_cat.jpg"
             //     savedFileName = "550e8400-e29b-41d4..._my_cat.jpg"
