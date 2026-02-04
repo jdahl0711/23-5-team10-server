@@ -93,7 +93,7 @@ class FollowRepository(
     private val followRowMapper =
         RowMapper { rs, _ ->
             FollowResponse(
-                userId = rs.getLong("id"),
+                userId = rs.getLong("user_id"),
                 nickname = rs.getString("nickname"),
                 profileImageUrl = rs.getString("profile_image_url"),
                 isFollowing = rs.getBoolean("is_following"),
