@@ -66,14 +66,15 @@ class JwtAuthenticationFilter(
         var user = userRepository.findByEmail("test@swagger.com")
 
         if (user == null) {
-            user = userRepository.save(
-                User(
-                    email = "test@swagger.com",
-                    password = BCryptPasswordEncoder().encode("password123"),
-                    nickname = "swagger_tester",
-                    role = Role.USER,
+            user =
+                userRepository.save(
+                    User(
+                        email = "test@swagger.com",
+                        password = BCryptPasswordEncoder().encode("password123"),
+                        nickname = "swagger_tester",
+                        role = Role.USER,
+                    ),
                 )
-            )
 
             refreshTokenRepository.deleteByUserId(user.userId!!)
             val refreshToken = jwtTokenProvider.createRefreshToken(user.userId!!)
@@ -90,7 +91,6 @@ class JwtAuthenticationFilter(
                 ),
             )
         }
-
 
         request.setAttribute("userId", user.userId)
         val auth =
