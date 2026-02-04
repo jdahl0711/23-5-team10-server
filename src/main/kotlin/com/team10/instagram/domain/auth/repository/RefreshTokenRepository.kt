@@ -7,4 +7,6 @@ interface RefreshTokenRepository : CrudRepository<RefreshToken, Long> {
     fun findByToken(token: String): RefreshToken?
 
     fun deleteByUserId(userId: Long)
+
+    fun findByUserId(userId: Long): List<RefreshToken>
 }
