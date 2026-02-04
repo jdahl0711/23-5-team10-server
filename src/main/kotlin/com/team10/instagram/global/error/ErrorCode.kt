@@ -35,6 +35,8 @@ enum class ErrorCode(
 
     // Follow (팔로우 관련)
     SELF_FOLLOW_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "SELF_FOLLOW_NOT_ALLOWED", "자기 자신은 팔로우할 수 없습니다."),
+    ALREADY_FOLLOWING(HttpStatus.CONFLICT, "ALREADY_FOLLOWING", "이미 팔로우 중인 사용자입니다."),
+    NOT_FOLLOWING(HttpStatus.BAD_REQUEST, "NOT_FOLLOWING", "팔로우 관계가 존재하지 않습니다."),
 
     // Album (앨범 관련)
     ALBUM_NOT_FOUND(HttpStatus.NOT_FOUND, "ALBUM_NOT_FOUND", "앨범을 찾을 수 없습니다."),
