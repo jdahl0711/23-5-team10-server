@@ -8,6 +8,7 @@ import com.team10.instagram.domain.user.LoggedInUser
 import com.team10.instagram.global.common.ApiResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
@@ -29,7 +30,7 @@ class AlbumController(
     @Operation(summary = "앨범 생성", description = "앨범을 생성합니다.")
     fun createAlbum(
         @LoggedInUser loggedInUser: Long,
-        @RequestBody request: AlbumCreateRequest,
+        @Valid @RequestBody request: AlbumCreateRequest,
     ): ApiResponse<Long> {
         val albumId = albumService.createAlbum(loggedInUser, request)
         return ApiResponse.onSuccess(albumId)
@@ -81,7 +82,7 @@ class AlbumController(
     fun updateAlbum(
         @LoggedInUser loggedInUser: Long,
         @PathVariable albumId: Long,
-        @RequestBody request: AlbumCreateRequest,
+        @Valid @RequestBody request: AlbumCreateRequest,
     ): ApiResponse<Unit> {
         albumService.updateAlbum(loggedInUser, albumId, request)
         return ApiResponse.onSuccess(Unit)

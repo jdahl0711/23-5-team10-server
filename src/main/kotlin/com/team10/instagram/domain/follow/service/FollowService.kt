@@ -2,14 +2,17 @@ package com.team10.instagram.domain.follow.service
 
 import com.team10.instagram.domain.follow.dto.FollowResponse
 import com.team10.instagram.domain.follow.repository.FollowRepository
+import com.team10.instagram.domain.user.repository.UserRepository
 import com.team10.instagram.global.error.CustomException
 import com.team10.instagram.global.error.ErrorCode
+import org.springframework.dao.DuplicateKeyException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
 class FollowService(
     private val followRepository: FollowRepository,
+    private val userRepository: UserRepository,
 ) {
     // 1. 팔로우 <-> 언팔로우 전환
     @Transactional
@@ -19,14 +22,21 @@ class FollowService(
     ): String {
         if (fromUserId == toUserId) throw CustomException(ErrorCode.SELF_FOLLOW_NOT_ALLOWED)
 
-        val isFollowing = followRepository.exists(fromUserId, toUserId)
-
-        return if (isFollowing) {
+        if (!userRepository.existsByUserId(toUserId)) {
+            throw CustomException(ErrorCode.USER_NOT_FOUND)
+        }
+        if (followRepository.exists(fromUserId, toUserId)) {
             followRepository.delete(fromUserId, toUserId)
-            "언팔로우 되었습니다."
-        } else {
+            return "언팔로우했습니다."
+        }
+
+        // 팔로우 안 했으면 팔로우
+        try {
             followRepository.save(fromUserId, toUserId)
-            "팔로우 되었습니다."
+            return "팔로우했습니다."
+        } catch (e: DuplicateKeyException) {
+            // 동시에 요청이 들어와서 중복 저장 시도
+            throw CustomException(ErrorCode.ALREADY_FOLLOWING)
         }
     }
 
@@ -48,6 +58,9 @@ class FollowService(
         myUserId: Long,
         followerId: Long,
     ) {
+        if (!followRepository.exists(fromUserId = followerId, toUserId = myUserId)) {
+            throw CustomException(ErrorCode.NOT_FOLLOWING)
+        }
         // DELETE FROM follow WHERE from = follower AND to = me
         followRepository.delete(followerId, myUserId)
     }
