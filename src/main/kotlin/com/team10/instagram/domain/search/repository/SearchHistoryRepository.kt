@@ -12,18 +12,21 @@ interface SearchHistoryRepository : CrudRepository<Search, Long> {
 
     @Query(
         """
-            SELECT * FROM search_history sh
-            WHERE sh.deleted_at IS NULL
-            AND sh.from_user_id = :fromUserId
-            AND sh.created_at = (
-                SELECT MAX(sub.created_at)
-                FROM search_history sub
-                WHERE sub.from_user_id = :fromUserId
-                AND sub.to_user_id = sh.to_user_id
-                AND sub.deleted_at IS NULL
-            )
-            ORDER BY sh.created_at DESC
-        """,
+        SELECT *
+        FROM (
+            SELECT
+                sh.*,
+                ROW_NUMBER() OVER (
+                    PARTITION BY sh.to_user_id
+                    ORDER BY sh.created_at DESC, sh.search_id DESC
+                ) AS rn
+            FROM search_history sh
+            WHERE sh.from_user_id = :fromUserId
+            AND sh.deleted_at IS NULL
+        ) t
+        WHERE t.rn = 1
+        ORDER BY t.created_at DESC
+    """,
     )
     fun findRecentByFromUserId(
         @Param("fromUserId") fromUserId: Long,

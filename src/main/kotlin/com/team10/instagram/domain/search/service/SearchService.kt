@@ -7,6 +7,7 @@ import com.team10.instagram.domain.search.model.Search
 import com.team10.instagram.domain.search.repository.SearchHistoryRepository
 import com.team10.instagram.domain.user.repository.UserRepository
 import org.springframework.stereotype.Service
+import java.time.LocalDateTime
 
 @Service
 class SearchService(
@@ -22,6 +23,7 @@ class SearchService(
                 Search(
                     fromUserId = fromUserId,
                     toUserId = toUserId,
+                    createdAt = LocalDateTime.now(),
                 ),
             )
 
