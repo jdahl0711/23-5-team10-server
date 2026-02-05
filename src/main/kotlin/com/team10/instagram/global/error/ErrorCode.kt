@@ -46,4 +46,6 @@ enum class ErrorCode(
     // Story (스토리 관련)
     STORY_NOT_FOUND(HttpStatus.NOT_FOUND, "STORY_NOT_FOUND", "스토리를 찾을 수 없거나 이미 만료되었습니다."),
     STORY_NOT_OWNER(HttpStatus.FORBIDDEN, "STORY_NOT_OWNER", "스토리 삭제 권한이 없습니다."),
+
+    OAUTH_AUTHENTICATION_FAILED(HttpStatus.UNAUTHORIZED, "OAUTH_AUTHENTICATION_FAILED", "OAuth 인증에 실패했습니다."),
 }
