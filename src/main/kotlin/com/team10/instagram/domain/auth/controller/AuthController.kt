@@ -114,9 +114,7 @@ class AuthController(
     @GetMapping("/current-refresh-token")
     fun getCurrentRefreshToken(
         @Parameter(hidden = true) @LoggedInUser user: User,
-    ): ApiResponse<String> {
-        return ApiResponse.onSuccess(authService.getCurrentRefreshToken(user.userId!!))
-    }
+    ): ApiResponse<String> = ApiResponse.onSuccess(authService.getCurrentRefreshToken(user.userId!!))
 
 /*
     // TODO

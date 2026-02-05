@@ -211,7 +211,5 @@ class AuthService(
         return nickname.matches(regex)
     }
 
-    fun getCurrentRefreshToken(userId: Long): String {
-        return refreshTokenRepository.findByUserId(userId)[0].token
-    }
+    fun getCurrentRefreshToken(userId: Long): String = refreshTokenRepository.findByUserId(userId)[0].token
 }
