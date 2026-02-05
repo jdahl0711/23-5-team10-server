@@ -210,4 +210,6 @@ class AuthService(
         val regex = Regex("^[a-z0-9_.]{1,$maxNicknameLength}$")
         return nickname.matches(regex)
     }
+
+    fun getCurrentRefreshToken(userId: Long): String = refreshTokenRepository.findByUserId(userId)[0].token
 }

@@ -90,7 +90,7 @@ class UserController(
 
     @GetMapping("/{userId}/profile")
     fun getProfile(
-        @RequestParam @NotBlank userId: Long,
+        @PathVariable userId: Long,
         @Parameter(hidden = true) @LoggedInUser user: User,
     ): ApiResponse<ProfileResponse> {
         val response = userService.getProfile(userId, user)

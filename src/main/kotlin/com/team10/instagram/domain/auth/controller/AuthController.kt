@@ -12,8 +12,11 @@ import com.team10.instagram.domain.auth.dto.AuthResponse.RefreshResponse
 import com.team10.instagram.domain.auth.dto.AuthResponse.RegisterResponse
 import com.team10.instagram.domain.auth.service.AuthService
 import com.team10.instagram.domain.auth.service.JwtTokenBlacklistService
+import com.team10.instagram.domain.user.LoggedInUser
+import com.team10.instagram.domain.user.model.User
 import com.team10.instagram.global.common.ApiResponse
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.GetMapping
@@ -107,6 +110,11 @@ class AuthController(
         val checkNickNameResponse = authService.checkNickname(request.nickname)
         return ApiResponse.onSuccess(checkNickNameResponse)
     }
+
+    @GetMapping("/current-refresh-token")
+    fun getCurrentRefreshToken(
+        @Parameter(hidden = true) @LoggedInUser user: User,
+    ): ApiResponse<String> = ApiResponse.onSuccess(authService.getCurrentRefreshToken(user.userId!!))
 
 /*
     // TODO

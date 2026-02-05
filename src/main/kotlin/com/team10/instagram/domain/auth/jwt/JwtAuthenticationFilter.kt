@@ -1,5 +1,7 @@
 package com.team10.instagram.domain.auth.jwt
 
+import com.team10.instagram.domain.auth.model.RefreshToken
+import com.team10.instagram.domain.auth.repository.RefreshTokenRepository
 import com.team10.instagram.domain.auth.service.JwtTokenBlacklistService
 import com.team10.instagram.domain.user.Role
 import com.team10.instagram.domain.user.model.User
@@ -14,12 +16,14 @@ import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
+import java.time.ZoneId
 
 @Component
 class JwtAuthenticationFilter(
     private val jwtTokenProvider: JwtTokenProvider,
     private val jwtTokenBlacklistService: JwtTokenBlacklistService,
     private val userRepository: UserRepository,
+    private val refreshTokenRepository: RefreshTokenRepository,
 ) : OncePerRequestFilter() {
     @Value("\${jwt.test-token}")
     private lateinit var testToken: String
@@ -59,9 +63,11 @@ class JwtAuthenticationFilter(
     }
 
     private fun handleTestToken(request: HttpServletRequest) {
-        val user =
-            userRepository.findByEmail("test@swagger.com")
-                ?: userRepository.save(
+        var user = userRepository.findByEmail("test@swagger.com")
+
+        if (user == null) {
+            user =
+                userRepository.save(
                     User(
                         email = "test@swagger.com",
                         password = BCryptPasswordEncoder().encode("password123"),
@@ -69,6 +75,23 @@ class JwtAuthenticationFilter(
                         role = Role.USER,
                     ),
                 )
+
+            refreshTokenRepository.deleteByUserId(user.userId!!)
+            val refreshToken = jwtTokenProvider.createRefreshToken(user.userId!!)
+            refreshTokenRepository.save(
+                RefreshToken(
+                    userId = user.userId!!,
+                    token = refreshToken,
+                    expiresAt =
+                        jwtTokenProvider
+                            .getExpiration(refreshToken)
+                            .toInstant()
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDateTime(),
+                ),
+            )
+        }
+
         request.setAttribute("userId", user.userId)
         val auth =
             UsernamePasswordAuthenticationToken(
