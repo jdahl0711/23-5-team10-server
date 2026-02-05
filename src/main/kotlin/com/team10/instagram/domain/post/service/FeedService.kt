@@ -80,7 +80,7 @@ class FeedService(
                     thumbnailImageUrl = thumbnail,
                     likeCount = likeCount,
                     commentCount = commentCount,
-                    createdAt = post.createdAt!!,
+                    createdAt = post.createdAt ?: java.time.LocalDateTime.now(),
                     isLiked = isLiked,
                     isBookmarked = isBookmarked,
                 )
