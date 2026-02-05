@@ -69,7 +69,7 @@ class JwtAuthenticationFilter(
                     UsernamePasswordAuthenticationToken(
                         user,
                         null,
-                        listOf(SimpleGrantedAuthority(user.role.name)),
+                        listOf(SimpleGrantedAuthority("ROLE_${user.role.name}")),
                     )
                 SecurityContextHolder.getContext().authentication = auth
             }
@@ -93,5 +93,7 @@ class JwtAuthenticationFilter(
         pathMatcher.match("/api/v1/auth/**", path) ||
             pathMatcher.match("/swagger-ui/**", path) ||
             pathMatcher.match("/v3/api-docs/**", path) ||
-            pathMatcher.match("/actuator/health", path)
+            pathMatcher.match("/actuator/health", path) ||
+            pathMatcher.match("/oauth2/**", path) ||
+            pathMatcher.match("/login/**", path)
 }

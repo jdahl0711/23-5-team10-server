@@ -24,7 +24,6 @@ class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val customOAuth2UserService: CustomOAuth2UserService,
     private val oAuth2LoginSuccessHandler: OAuth2LoginSuccessHandler,
-    private val authService: AuthService,
 ) {
     @Bean
     fun passwordEncoder(): PasswordEncoder = BCryptPasswordEncoder()
@@ -66,7 +65,7 @@ class SecurityConfig(
                             exception.message ?: "OAuth authentication failed",
                         )
                     }
-            }.logout {
+            }/*.logout {
                 it
                     .logoutUrl("/logout")
                     .logoutSuccessHandler { request, response, _ ->
@@ -89,7 +88,7 @@ class SecurityConfig(
                         response.addCookie(cookie)
                         response.status = HttpServletResponse.SC_OK
                     }
-            }.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
+            }*/.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
         return http.build()
     }
 

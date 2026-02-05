@@ -28,6 +28,6 @@ class OAuth2LoginSuccessHandler(
                 path = "/"
             },
         )
-        response.sendRedirect("http://localhost:8080/oauth?accessToken=$accessToken")
+        response.sendRedirect("https://d1ki8kre4wetjx.cloudfront.net/oauth?accessToken=$accessToken")
     }
 }
