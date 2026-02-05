@@ -4,6 +4,8 @@ import com.team10.instagram.domain.auth.service.JwtTokenBlacklistService
 import com.team10.instagram.domain.post.dto.UserPostSearchResponse
 import com.team10.instagram.domain.post.service.PostService
 import com.team10.instagram.domain.user.LoggedInUser
+import com.team10.instagram.domain.user.dto.ProfilePatchRequest
+import com.team10.instagram.domain.user.dto.ProfilePatchResponse
 import com.team10.instagram.domain.user.dto.ProfileResponse
 import com.team10.instagram.domain.user.dto.UserDto
 import com.team10.instagram.domain.user.dto.UserSearchResponse
@@ -18,7 +20,9 @@ import jakarta.validation.constraints.NotBlank
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -94,6 +98,22 @@ class UserController(
         @Parameter(hidden = true) @LoggedInUser user: User,
     ): ApiResponse<ProfileResponse> {
         val response = userService.getProfile(userId, user)
+        return ApiResponse.onSuccess(response)
+    }
+
+    @PatchMapping("/me")
+    fun patchProfile(
+        @RequestBody profilePatchRequest: ProfilePatchRequest,
+        @Parameter(hidden = true) @LoggedInUser user: User,
+    ): ApiResponse<ProfilePatchResponse> {
+        val response =
+            userService.patchProfile(
+                user.userId!!,
+                profilePatchRequest.nickname,
+                profilePatchRequest.name,
+                profilePatchRequest.bio,
+                profilePatchRequest.profileImageUrl,
+            )
         return ApiResponse.onSuccess(response)
     }
 }

@@ -2,6 +2,7 @@ package com.team10.instagram.domain.user.service
 
 import com.team10.instagram.domain.follow.repository.FollowRepository
 import com.team10.instagram.domain.post.repository.PostRepository
+import com.team10.instagram.domain.user.dto.ProfilePatchResponse
 import com.team10.instagram.domain.user.dto.ProfileResponse
 import com.team10.instagram.domain.user.dto.UserSearchResponse
 import com.team10.instagram.domain.user.dto.UserSearchResponseDtoUnit
@@ -61,6 +62,46 @@ class UserService(
             followingCount = followRepository.countFollowings(profileUser.userId!!),
             isMe = profileUser.userId == loggedInUser.userId,
             isFollowed = followRepository.exists(loggedInUser.userId!!, profileUser.userId!!),
+        )
+    }
+
+    fun patchProfile(
+        userId: Long,
+        nickname: String?,
+        name: String?,
+        bio: String?,
+        profileImageUrl: String?,
+    ): ProfilePatchResponse {
+        val profileUser =
+            try {
+                userRepository.findByUserId(userId)!!
+            } catch (e: Exception) {
+                throw CustomException(ErrorCode.USER_NOT_FOUND)
+            }
+
+        if (nickname != null) {
+            profileUser.nickname = nickname
+        }
+        if (name != null) {
+            profileUser.name = name
+        }
+        if (bio != null) {
+            profileUser.bio = bio
+        }
+        if (profileImageUrl != null) {
+            profileUser.profileImageUrl = profileImageUrl
+        }
+
+        userRepository.save(profileUser)
+
+        return ProfilePatchResponse(
+            userId = profileUser.userId!!,
+            email = profileUser.email,
+            nickname = profileUser.nickname,
+            name = profileUser.name,
+            bio = profileUser.bio,
+            profileImageUrl = profileUser.profileImageUrl,
+            role = profileUser.role.name,
         )
     }
 }

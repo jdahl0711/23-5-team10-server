@@ -13,7 +13,7 @@ data class User(
     val email: String,
     var password: String? = null,
     var nickname: String,
-    val name: String? = null,
+    var name: String? = null,
     var profileImageUrl: String? = null,
     var bio: String? = null,
     var role: Role = Role.USER,
