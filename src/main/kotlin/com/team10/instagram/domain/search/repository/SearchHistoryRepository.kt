@@ -26,7 +26,7 @@ interface SearchHistoryRepository : CrudRepository<Search, Long> {
         ) t
         WHERE t.rn = 1
         ORDER BY t.created_at DESC
-    """
+    """,
     )
     fun findRecentByFromUserId(
         @Param("fromUserId") fromUserId: Long,

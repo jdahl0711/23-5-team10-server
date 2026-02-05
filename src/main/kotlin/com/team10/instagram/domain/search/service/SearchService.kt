@@ -23,7 +23,7 @@ class SearchService(
                 Search(
                     fromUserId = fromUserId,
                     toUserId = toUserId,
-                    createdAt = LocalDateTime.now()
+                    createdAt = LocalDateTime.now(),
                 ),
             )
 
