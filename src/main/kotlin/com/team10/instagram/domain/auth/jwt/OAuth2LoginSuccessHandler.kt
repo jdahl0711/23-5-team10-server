@@ -52,6 +52,6 @@ class OAuth2LoginSuccessHandler(
             "refreshToken=$refreshToken; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=$refreshMaxAge; ",
         )
 
-        response.sendRedirect("https://d1ki8kre4wetjx.cloudfront.net/oauth?accessToken=$accessToken")
+        response.sendRedirect("https://www.wfinstaclone.shop/oauth?accessToken=$accessToken")
     }
 }
