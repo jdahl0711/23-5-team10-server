@@ -4,7 +4,6 @@ import com.team10.instagram.domain.auth.service.JwtTokenBlacklistService
 import com.team10.instagram.domain.post.dto.UserPostSearchResponse
 import com.team10.instagram.domain.post.service.PostService
 import com.team10.instagram.domain.user.LoggedInUser
-import com.team10.instagram.domain.user.dto.ProfilePatchRequest
 import com.team10.instagram.domain.user.dto.ProfilePatchResponse
 import com.team10.instagram.domain.user.dto.ProfileResponse
 import com.team10.instagram.domain.user.dto.UserDto
@@ -103,16 +102,13 @@ class UserController(
 
     @PatchMapping("/me")
     fun patchProfile(
-        @RequestBody profilePatchRequest: ProfilePatchRequest,
+        @RequestBody request: Map<String, Any>,
         @Parameter(hidden = true) @LoggedInUser user: User,
     ): ApiResponse<ProfilePatchResponse> {
         val response =
             userService.patchProfile(
                 user.userId!!,
-                profilePatchRequest.nickname,
-                profilePatchRequest.name,
-                profilePatchRequest.bio,
-                profilePatchRequest.profileImageUrl,
+                request,
             )
         return ApiResponse.onSuccess(response)
     }
