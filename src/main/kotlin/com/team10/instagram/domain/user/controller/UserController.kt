@@ -108,7 +108,7 @@ class UserController(
         val response =
             userService.patchProfile(
                 user.userId!!,
-                request
+                request,
             )
         return ApiResponse.onSuccess(response)
     }

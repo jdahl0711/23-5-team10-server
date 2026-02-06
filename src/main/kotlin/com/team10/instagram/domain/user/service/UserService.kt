@@ -89,7 +89,6 @@ class UserService(
             profileUser.profileImageUrl = request["profileImageUrl"] as String?
         }
 
-
         userRepository.save(profileUser)
 
         return ProfilePatchResponse(
