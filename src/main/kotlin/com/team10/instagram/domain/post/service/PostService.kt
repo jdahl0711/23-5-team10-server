@@ -205,6 +205,8 @@ class PostService(
         val isLiked = currentUser?.let { postLikeRepository.existsByPostIdAndUserId(post.id, it.userId!!) } ?: false
         val isBookmarked = currentUser?.let { bookmarkRepository.existsByPostIdAndUserId(post.id, it.userId!!) } ?: false
 
+        val createdAt = post.createdAt ?: LocalDateTime.now()
+
         return PostResponse(
             id = post.id,
             userId = author.userId!!,
@@ -220,8 +222,8 @@ class PostService(
             commentCount = commentCount,
             isLiked = isLiked,
             isBookmarked = isBookmarked,
-            createdAt = post.createdAt ?: LocalDateTime.now(),
-            updatedAt = post.updatedAt ?: LocalDateTime.now(),
+            createdAt = createdAt,
+            updatedAt = post.updatedAt ?: createdAt,
         )
     }
 }
