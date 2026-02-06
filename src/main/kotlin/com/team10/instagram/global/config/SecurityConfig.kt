@@ -3,6 +3,7 @@ package com.team10.instagram.global.config
 import com.team10.instagram.domain.auth.jwt.JwtAuthenticationFilter
 import com.team10.instagram.domain.auth.jwt.OAuth2LoginSuccessHandler
 import com.team10.instagram.domain.auth.service.CustomOAuth2UserService
+import com.team10.instagram.global.error.ErrorCode
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -34,7 +35,27 @@ class SecurityConfig(
             .csrf { it.disable() }
             .formLogin { it.disable() }
             .httpBasic { it.disable() }
-            .authorizeHttpRequests {
+            // 인증 실패 시 로그인 페이지 이동(302) 대신 401 에러(JSON) 반환
+            .exceptionHandling {
+                it.authenticationEntryPoint { _, response, _ ->
+                    val errorCode = ErrorCode.LOGIN_REQUIRED
+
+                    response.contentType = "application/json;charset=UTF-8"
+                    response.status = errorCode.status.value() // 401
+
+                    // JSON 생성 시 Enum의 code와 message를 사용
+                    response.writer.write(
+                        """
+                        {
+                            "isSuccess": false,
+                            "code": "${errorCode.code}",
+                            "message": "${errorCode.message}",
+                            "data": null
+                        }
+                        """.trimIndent(),
+                    )
+                }
+            }.authorizeHttpRequests {
                 // Actuator health check
                 it.requestMatchers("/actuator/health").permitAll()
                 // Swagger
