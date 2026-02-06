@@ -67,10 +67,7 @@ class UserService(
 
     fun patchProfile(
         userId: Long,
-        nickname: String?,
-        name: String?,
-        bio: String?,
-        profileImageUrl: String?,
+        request: Map<String, Any?>,
     ): ProfilePatchResponse {
         val profileUser =
             try {
@@ -79,17 +76,17 @@ class UserService(
                 throw CustomException(ErrorCode.USER_NOT_FOUND)
             }
 
-        if (nickname != null) {
-            profileUser.nickname = nickname
+        if (request.containsKey("nickname")) {
+            profileUser.nickname = request["nickname"] as String
         }
-        if (name != null) {
-            profileUser.name = name
+        if (request.containsKey("name")) {
+            profileUser.name = request["name"] as String?
         }
-        if (bio != null) {
-            profileUser.bio = bio
+        if (request.containsKey("bio")) {
+            profileUser.bio = request["bio"] as String?
         }
-        if (profileImageUrl != null) {
-            profileUser.profileImageUrl = profileImageUrl
+        if (request.containsKey("profileImageUrl")) {
+            profileUser.profileImageUrl = request["profileImageUrl"] as String?
         }
 
         userRepository.save(profileUser)
