@@ -33,7 +33,7 @@ class JwtAuthenticationFilter(
         response: HttpServletResponse,
         filterChain: FilterChain,
     ) {
-        val token = resolveToken(request)
+        val token = jwtTokenProvider.resolveAccessToken(request)
 
         if (token != null) {
             if (token == testToken) {
@@ -100,13 +100,5 @@ class JwtAuthenticationFilter(
                 listOf(SimpleGrantedAuthority("ROLE_USER")),
             )
         SecurityContextHolder.getContext().authentication = auth
-    }
-
-    private fun resolveToken(request: HttpServletRequest): String? {
-        val bearerToken = request.getHeader("Authorization")
-        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7)
-        }
-        return null
     }
 }

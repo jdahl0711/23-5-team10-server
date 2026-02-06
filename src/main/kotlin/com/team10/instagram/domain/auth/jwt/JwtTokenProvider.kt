@@ -4,6 +4,7 @@ import com.team10.instagram.domain.auth.service.JwtTokenBlacklistService
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.SignatureAlgorithm
 import io.jsonwebtoken.security.Keys
+import jakarta.servlet.http.HttpServletRequest
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.util.Date
@@ -14,9 +15,9 @@ class JwtTokenProvider(
     @Value("\${jwt.secret}")
     private val secretKey: String,
     @Value("\${jwt.access-token-expiration-in-ms}")
-    private val accessTokenExpirationInMs: Long,
+    val accessTokenExpirationInMs: Long,
     @Value("\${jwt.refresh-token-expiration-in-ms}")
-    private val refreshTokenExpirationInMs: Long,
+    val refreshTokenExpirationInMs: Long,
 ) {
     private val key = Keys.hmacShaKeyFor(secretKey.toByteArray())
 
@@ -105,4 +106,23 @@ class JwtTokenProvider(
             false
         }
     }
+
+    fun resolveAccessToken(request: HttpServletRequest): String? {
+        val authorizationHeader = request.getHeader("Authorization")
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            return authorizationHeader.substring(7)
+        }
+
+        return extractAccessTokenFromCookie(request)
+    }
+
+    fun extractAccessTokenFromCookie(request: HttpServletRequest): String? =
+        request.cookies
+            ?.firstOrNull { it.name == "accessToken" }
+            ?.value
+
+    fun extractRefreshTokenFromCookie(request: HttpServletRequest): String? =
+        request.cookies
+            ?.firstOrNull { it.name == "refreshToken" }
+            ?.value
 }

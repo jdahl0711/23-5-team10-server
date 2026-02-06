@@ -2,8 +2,6 @@ package com.team10.instagram.domain.auth.service
 
 import com.team10.instagram.domain.auth.dto.AuthResponse.CheckAccountResponse
 import com.team10.instagram.domain.auth.dto.AuthResponse.CheckNicknameResponse
-import com.team10.instagram.domain.auth.dto.AuthResponse.LoginResponse
-import com.team10.instagram.domain.auth.dto.AuthResponse.RefreshResponse
 import com.team10.instagram.domain.auth.jwt.JwtTokenProvider
 import com.team10.instagram.domain.auth.model.RefreshToken
 import com.team10.instagram.domain.auth.repository.RefreshTokenRepository
@@ -12,6 +10,8 @@ import com.team10.instagram.domain.user.model.User
 import com.team10.instagram.domain.user.repository.UserRepository
 import com.team10.instagram.global.error.CustomException
 import com.team10.instagram.global.error.ErrorCode
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -59,7 +59,8 @@ class AuthService(
     fun login(
         loginId: String,
         password: String,
-    ): LoginResponse {
+        response: HttpServletResponse,
+    ) {
         val user =
             findUserByLoginId(loginId)
                 ?: throw CustomException(ErrorCode.USER_NOT_FOUND)
@@ -67,27 +68,18 @@ class AuthService(
         if (!passwordEncoder.matches(password, user.password)) {
             throw CustomException(ErrorCode.INVALID_PASSWORD)
         }
-        // 1개의 기기에서만 로그인 가능하도록 설정 -> 추후 수정 가능
-        refreshTokenRepository.deleteByUserId(user.userId!!)
-        val accessToken = jwtTokenProvider.createAccessToken(user.userId!!)
-        val refreshToken = jwtTokenProvider.createRefreshToken(user.userId!!)
-        refreshTokenRepository.save(
-            RefreshToken(
-                userId = user.userId!!,
-                token = refreshToken,
-                expiresAt =
-                    jwtTokenProvider
-                        .getExpiration(refreshToken)
-                        .toInstant()
-                        .atZone(ZoneId.systemDefault())
-                        .toLocalDateTime(),
-            ),
-        )
 
-        return LoginResponse(accessToken, refreshToken)
+        issueTokens(user.userId!!, response)
     }
 
-    fun refresh(refreshToken: String): RefreshResponse {
+    fun refresh(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+    ) {
+        val refreshToken =
+            jwtTokenProvider.extractRefreshTokenFromCookie(request)
+                ?: throw CustomException(ErrorCode.INVALID_REFRESH_TOKEN)
+
         val savedToken =
             refreshTokenRepository.findByToken(refreshToken)
                 ?: throw CustomException(ErrorCode.INVALID_REFRESH_TOKEN)
@@ -106,22 +98,7 @@ class AuthService(
         savedToken.usedAt = LocalDateTime.now()
         refreshTokenRepository.save(savedToken)
 
-        val newAccessToken = jwtTokenProvider.createAccessToken(savedToken.userId)
-        val newRefreshToken = jwtTokenProvider.createRefreshToken(savedToken.userId)
-        refreshTokenRepository.save(
-            RefreshToken(
-                userId = savedToken.userId,
-                token = newRefreshToken,
-                expiresAt =
-                    jwtTokenProvider
-                        .getExpiration(newRefreshToken)
-                        .toInstant()
-                        .atZone(ZoneId.systemDefault())
-                        .toLocalDateTime(),
-            ),
-        )
-
-        return RefreshResponse(newAccessToken, newRefreshToken)
+        issueTokens(savedToken.userId, response)
     }
 
     private fun findUserByLoginId(loginId: String): User? =
@@ -131,10 +108,75 @@ class AuthService(
             userRepository.findByNickname(loginId)
         }
 
-    fun logout(accessToken: String) {
-        jwtTokenBlacklistService.add(accessToken)
-        val userId = jwtTokenProvider.getUserId(accessToken)
+    fun logout(
+        userId: Long,
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+    ) {
+        val accessToken = jwtTokenProvider.resolveAccessToken(request)
+        if (accessToken != null) jwtTokenBlacklistService.add(accessToken)
         refreshTokenRepository.deleteByUserId(userId)
+        deleteAuthCookies(response)
+    }
+
+    fun withdraw(
+        userId: Long,
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+    ) {
+        val accessToken = jwtTokenProvider.resolveAccessToken(request)
+        if (accessToken != null) {
+            jwtTokenBlacklistService.add(accessToken)
+        }
+
+        refreshTokenRepository.deleteByUserId(userId)
+        deleteAuthCookies(response)
+        userRepository.deleteByUserId(userId)
+    }
+
+    private fun issueTokens(
+        userId: Long,
+        response: HttpServletResponse,
+    ) {
+        // 1개의 기기에서만 로그인 가능하도록 설정 -> 추후 수정 가능
+        refreshTokenRepository.deleteByUserId(userId)
+        val accessToken = jwtTokenProvider.createAccessToken(userId)
+        val refreshToken = jwtTokenProvider.createRefreshToken(userId)
+        refreshTokenRepository.save(
+            RefreshToken(
+                userId = userId,
+                token = refreshToken,
+                expiresAt =
+                    jwtTokenProvider
+                        .getExpiration(refreshToken)
+                        .toInstant()
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDateTime(),
+            ),
+        )
+
+        val accessMaxAge = jwtTokenProvider.accessTokenExpirationInMs / 1000
+        val refreshMaxAge = jwtTokenProvider.refreshTokenExpirationInMs / 1000
+
+        response.addHeader(
+            "Set-Cookie",
+            "accessToken=$accessToken; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=$accessMaxAge; ",
+        )
+        response.addHeader(
+            "Set-Cookie",
+            "refreshToken=$refreshToken; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=$refreshMaxAge; ",
+        )
+    }
+
+    private fun deleteAuthCookies(response: HttpServletResponse) {
+        response.addHeader(
+            "Set-Cookie",
+            "accessToken=; Max-Age=0; HttpOnly; Secure; SameSite=None; Path=/",
+        )
+        response.addHeader(
+            "Set-Cookie",
+            "refreshToken=; Max-Age=0; HttpOnly; Secure; SameSite=None; Path=/",
+        )
     }
 
     fun loginOAuth(
@@ -211,5 +253,10 @@ class AuthService(
         return nickname.matches(regex)
     }
 
-    fun getCurrentRefreshToken(userId: Long): String = refreshTokenRepository.findByUserId(userId)[0].token
+    fun getCurrentRefreshToken(userId: Long): String =
+        refreshTokenRepository
+            .findByUserId(userId)
+            .firstOrNull()
+            ?.token
+            ?: throw CustomException(ErrorCode.INVALID_REFRESH_TOKEN)
 }
