@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 
 // 모든 응답은 이 껍데기로 감싸서 나갑니다.
 data class ApiResponse<T>(
-    @JsonProperty("isSuccess")
+    @get:JsonProperty("isSuccess")
     val isSuccess: Boolean,
     val code: String,
     val message: String,
