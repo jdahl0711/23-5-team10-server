@@ -3,7 +3,6 @@ package com.team10.instagram.domain.auth.jwt
 import com.team10.instagram.domain.auth.model.CustomOAuth2User
 import com.team10.instagram.domain.auth.model.RefreshToken
 import com.team10.instagram.domain.auth.repository.RefreshTokenRepository
-import jakarta.servlet.http.Cookie
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.security.core.Authentication
@@ -40,13 +39,19 @@ class OAuth2LoginSuccessHandler(
             ),
         )
 
-        response.addCookie(
-            Cookie("refreshToken", refreshToken).apply {
-                isHttpOnly = true
-                secure = true
-                path = "/"
-            },
+        val accessMaxAge = jwtTokenProvider.accessTokenExpirationInMs / 1000
+        val refreshMaxAge = jwtTokenProvider.refreshTokenExpirationInMs / 1000
+
+        /*
+        response.addHeader(
+            "Set-Cookie",
+            "accessToken=$accessToken; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=$accessMaxAge; ",
+        )*/
+        response.addHeader(
+            "Set-Cookie",
+            "refreshToken=$refreshToken; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=$refreshMaxAge; ",
         )
-        response.sendRedirect("https://d1ki8kre4wetjx.cloudfront.net/oauth?accessToken=$accessToken")
+
+        response.sendRedirect("https://www.wfinstaclone.shop/oauth?accessToken=$accessToken")
     }
 }

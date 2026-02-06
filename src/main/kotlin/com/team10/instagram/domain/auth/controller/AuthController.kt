@@ -3,7 +3,6 @@ package com.team10.instagram.domain.auth.controller
 import com.team10.instagram.domain.auth.dto.AuthRequest.CheckAccountRequest
 import com.team10.instagram.domain.auth.dto.AuthRequest.CheckNicknameRequest
 import com.team10.instagram.domain.auth.dto.AuthRequest.LoginRequest
-import com.team10.instagram.domain.auth.dto.AuthRequest.RefreshRequest
 import com.team10.instagram.domain.auth.dto.AuthRequest.RegisterRequest
 import com.team10.instagram.domain.auth.dto.AuthResponse.CheckAccountResponse
 import com.team10.instagram.domain.auth.dto.AuthResponse.CheckNicknameResponse
@@ -18,12 +17,14 @@ import com.team10.instagram.global.common.ApiResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 
@@ -44,9 +45,10 @@ class AuthController(
     @PostMapping("/login")
     fun login(
         @Valid @RequestBody request: LoginRequest,
+        response: HttpServletResponse,
     ): ApiResponse<LoginResponse> {
-        val tokenPair = authService.login(request.loginId, request.password)
-        return ApiResponse.onSuccess(tokenPair)
+        val accessToken = authService.login(request.loginId, request.password, response)
+        return ApiResponse.onSuccess(LoginResponse(accessToken))
     }
 
     @Operation(summary = "회원가입", description = "이메일, 비밀번호, 닉네임으로 회원가입 후 자동 로그인")
@@ -59,10 +61,11 @@ class AuthController(
     @PostMapping("/register")
     fun register(
         @Valid @RequestBody request: RegisterRequest,
+        respone: HttpServletResponse,
     ): ApiResponse<RegisterResponse> {
         authService.register(request.email, request.password, request.nickname)
-        val tokenPair = authService.login(request.email, request.password)
-        return ApiResponse.onSuccess(RegisterResponse(accessToken = tokenPair.accessToken, refreshToken = tokenPair.refreshToken))
+        val accessToken = authService.login(request.email, request.password, respone)
+        return ApiResponse.onSuccess(RegisterResponse(accessToken))
     }
 
     @Operation(summary = "액세스 토큰 재발급", description = "재발급 토큰을 인증하여 액세스 토큰 재발급")
@@ -74,10 +77,11 @@ class AuthController(
     )
     @PostMapping("/refresh")
     fun refresh(
-        @Valid @RequestBody request: RefreshRequest,
+        request: HttpServletRequest,
+        response: HttpServletResponse,
     ): ApiResponse<RefreshResponse> {
-        val refreshResponse = authService.refresh(request.refreshToken)
-        return ApiResponse.onSuccess(refreshResponse)
+        val accessToken = authService.refresh(request, response)
+        return ApiResponse.onSuccess(RefreshResponse(accessToken))
     }
 
     @Operation(summary = "로그아웃", description = "현재 JWT Access Token을 무효화합니다")
@@ -88,11 +92,12 @@ class AuthController(
     )
     @PostMapping("/logout")
     fun logout(
-        @RequestHeader("Authorization") authorizationHeader: String,
-    ): ApiResponse<String> {
-        val accessToken = authorizationHeader.replace("Bearer", "").trim()
-        authService.logout(accessToken)
-        return ApiResponse.onSuccess("Logged out successfully")
+        @Parameter(hidden = true) @LoggedInUser user: User,
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+    ): ApiResponse<Unit> {
+        authService.logout(user.userId!!, request, response)
+        return ApiResponse.onSuccess(Unit)
     }
 
     @PostMapping("/check-account")
@@ -105,7 +110,7 @@ class AuthController(
 
     @GetMapping("/check-nickname")
     fun checkNickname(
-        @Valid @RequestBody request: CheckNicknameRequest,
+        @RequestParam request: CheckNicknameRequest,
     ): ApiResponse<CheckNicknameResponse> {
         val checkNickNameResponse = authService.checkNickname(request.nickname)
         return ApiResponse.onSuccess(checkNickNameResponse)
