@@ -25,6 +25,7 @@ enum class ErrorCode(
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN", "인증 정보가 유효하지 않습니다."),
     REFRESH_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "REFRESH_TOKEN_EXPIRED", "인증 정보가 만료되었습니다."),
     REFRESH_TOKEN_REUSE_DETECTED(HttpStatus.UNAUTHORIZED, "REFRESH_TOKEN_REUSE_DETECTED", "재발급 토큰이 재사용되었습니다."),
+    LOGIN_REQUIRED(HttpStatus.UNAUTHORIZED, "LOGIN_REQUIRED", "로그인이 필요한 접근입니다."),
 
     // Post (게시글 관련)
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_NOT_FOUND", "게시글을 찾을 수 없습니다."),
