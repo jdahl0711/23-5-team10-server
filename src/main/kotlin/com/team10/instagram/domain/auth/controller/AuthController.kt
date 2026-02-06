@@ -6,6 +6,9 @@ import com.team10.instagram.domain.auth.dto.AuthRequest.LoginRequest
 import com.team10.instagram.domain.auth.dto.AuthRequest.RegisterRequest
 import com.team10.instagram.domain.auth.dto.AuthResponse.CheckAccountResponse
 import com.team10.instagram.domain.auth.dto.AuthResponse.CheckNicknameResponse
+import com.team10.instagram.domain.auth.dto.AuthResponse.LoginResponse
+import com.team10.instagram.domain.auth.dto.AuthResponse.RefreshResponse
+import com.team10.instagram.domain.auth.dto.AuthResponse.RegisterResponse
 import com.team10.instagram.domain.auth.service.AuthService
 import com.team10.instagram.domain.auth.service.JwtTokenBlacklistService
 import com.team10.instagram.domain.user.LoggedInUser
@@ -43,9 +46,9 @@ class AuthController(
     fun login(
         @Valid @RequestBody request: LoginRequest,
         response: HttpServletResponse,
-    ): ApiResponse<Unit> {
-        authService.login(request.loginId, request.password, response)
-        return ApiResponse.onSuccess(Unit)
+    ): ApiResponse<LoginResponse> {
+        val accessToken = authService.login(request.loginId, request.password, response)
+        return ApiResponse.onSuccess(LoginResponse(accessToken))
     }
 
     @Operation(summary = "회원가입", description = "이메일, 비밀번호, 닉네임으로 회원가입 후 자동 로그인")
@@ -59,10 +62,10 @@ class AuthController(
     fun register(
         @Valid @RequestBody request: RegisterRequest,
         respone: HttpServletResponse,
-    ): ApiResponse<Unit> {
+    ): ApiResponse<RegisterResponse> {
         authService.register(request.email, request.password, request.nickname)
-        authService.login(request.email, request.password, respone)
-        return ApiResponse.onSuccess(Unit)
+        val accessToken = authService.login(request.email, request.password, respone)
+        return ApiResponse.onSuccess(RegisterResponse(accessToken))
     }
 
     @Operation(summary = "액세스 토큰 재발급", description = "재발급 토큰을 인증하여 액세스 토큰 재발급")
@@ -76,9 +79,9 @@ class AuthController(
     fun refresh(
         request: HttpServletRequest,
         response: HttpServletResponse,
-    ): ApiResponse<Unit> {
-        authService.refresh(request, response)
-        return ApiResponse.onSuccess(Unit)
+    ): ApiResponse<RefreshResponse> {
+        val accessToken = authService.refresh(request, response)
+        return ApiResponse.onSuccess(RefreshResponse(accessToken))
     }
 
     @Operation(summary = "로그아웃", description = "현재 JWT Access Token을 무효화합니다")

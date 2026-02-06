@@ -42,15 +42,16 @@ class OAuth2LoginSuccessHandler(
         val accessMaxAge = jwtTokenProvider.accessTokenExpirationInMs / 1000
         val refreshMaxAge = jwtTokenProvider.refreshTokenExpirationInMs / 1000
 
+        /*
         response.addHeader(
             "Set-Cookie",
             "accessToken=$accessToken; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=$accessMaxAge; ",
-        )
+        )*/
         response.addHeader(
             "Set-Cookie",
             "refreshToken=$refreshToken; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=$refreshMaxAge; ",
         )
 
-        response.sendRedirect("https://d1ki8kre4wetjx.cloudfront.net/oauth")
+        response.sendRedirect("https://d1ki8kre4wetjx.cloudfront.net/oauth?accessToken=$accessToken")
     }
 }

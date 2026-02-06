@@ -60,7 +60,7 @@ class AuthService(
         loginId: String,
         password: String,
         response: HttpServletResponse,
-    ) {
+    ): String {
         val user =
             findUserByLoginId(loginId)
                 ?: throw CustomException(ErrorCode.USER_NOT_FOUND)
@@ -69,13 +69,14 @@ class AuthService(
             throw CustomException(ErrorCode.INVALID_PASSWORD)
         }
 
-        issueTokens(user.userId!!, response)
+        val accessToken = issueTokensAndGetAccessToken(user.userId!!, response)
+        return accessToken
     }
 
     fun refresh(
         request: HttpServletRequest,
         response: HttpServletResponse,
-    ) {
+    ): String {
         val refreshToken =
             jwtTokenProvider.extractRefreshTokenFromCookie(request)
                 ?: throw CustomException(ErrorCode.INVALID_REFRESH_TOKEN)
@@ -98,7 +99,7 @@ class AuthService(
         savedToken.usedAt = LocalDateTime.now()
         refreshTokenRepository.save(savedToken)
 
-        issueTokens(savedToken.userId, response)
+        return issueTokensAndGetAccessToken(savedToken.userId, response)
     }
 
     private fun findUserByLoginId(loginId: String): User? =
@@ -134,10 +135,10 @@ class AuthService(
         userRepository.deleteByUserId(userId)
     }
 
-    private fun issueTokens(
+    private fun issueTokensAndGetAccessToken(
         userId: Long,
         response: HttpServletResponse,
-    ) {
+    ): String {
         // 1개의 기기에서만 로그인 가능하도록 설정 -> 추후 수정 가능
         refreshTokenRepository.deleteByUserId(userId)
         val accessToken = jwtTokenProvider.createAccessToken(userId)
@@ -155,24 +156,23 @@ class AuthService(
             ),
         )
 
-        val accessMaxAge = jwtTokenProvider.accessTokenExpirationInMs / 1000
+        // val accessMaxAge = jwtTokenProvider.accessTokenExpirationInMs / 1000
         val refreshMaxAge = jwtTokenProvider.refreshTokenExpirationInMs / 1000
 
         response.addHeader(
             "Set-Cookie",
-            "accessToken=$accessToken; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=$accessMaxAge; ",
-        )
-        response.addHeader(
-            "Set-Cookie",
             "refreshToken=$refreshToken; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=$refreshMaxAge; ",
         )
+
+        return accessToken
     }
 
     private fun deleteAuthCookies(response: HttpServletResponse) {
+        /*
         response.addHeader(
             "Set-Cookie",
             "accessToken=; Max-Age=0; HttpOnly; Secure; SameSite=None; Path=/",
-        )
+        )*/
         response.addHeader(
             "Set-Cookie",
             "refreshToken=; Max-Age=0; HttpOnly; Secure; SameSite=None; Path=/",
