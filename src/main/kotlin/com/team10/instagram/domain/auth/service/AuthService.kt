@@ -120,6 +120,7 @@ class AuthService(
         deleteAuthCookies(response)
     }
 
+    @Transactional
     fun withdraw(
         userId: Long,
         request: HttpServletRequest,
