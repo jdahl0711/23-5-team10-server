@@ -134,7 +134,12 @@ class StoryRepository(
                 id = rs.getLong("story_id"),
                 userId = rs.getLong("user_id"),
                 imageUrl = rs.getString("image_url"),
-                createdAt = rs.getTimestamp("created_at").toLocalDateTime(),
+                createdAt =
+                    rs
+                        .getTimestamp("created_at")
+                        .toInstant()
+                        .atZone(java.time.ZoneId.of("Asia/Seoul"))
+                        .toLocalDateTime(),
                 viewCount = rs.getInt("view_count"),
             )
         }
