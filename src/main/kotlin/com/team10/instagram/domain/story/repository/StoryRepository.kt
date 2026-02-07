@@ -137,9 +137,8 @@ class StoryRepository(
                 createdAt =
                     rs
                         .getTimestamp("created_at")
-                        .toInstant()
-                        .atZone(java.time.ZoneId.of("Asia/Seoul"))
-                        .toLocalDateTime(),
+                        .toLocalDateTime()
+                        .plusHours(9), // to convert DB (UTC) -> Java (UTC+9 SEOUL)
                 viewCount = rs.getInt("view_count"),
             )
         }
