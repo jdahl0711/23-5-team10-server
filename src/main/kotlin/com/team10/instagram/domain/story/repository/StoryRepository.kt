@@ -124,7 +124,7 @@ class StoryRepository(
                 nickname = rs.getString("nickname"),
                 profileImageUrl = rs.getString("profile_image_url"),
                 hasUnseenStory = rs.getInt("has_unseen") > 0, // 1이면 true
-                stories = emptyList()
+                stories = emptyList(),
             )
         }
 

@@ -17,9 +17,8 @@ data class StoryFeedResponse(
     val profileImageUrl: String?,
     @Schema(description = "아직 안 본 스토리가 있는지 여부 (테두리 색상용)", example = "true")
     val hasUnseenStory: Boolean = true,
-
     @Schema(description = "해당 유저의 스토리 목록")
-    val stories: List<StoryDetailResponse> = emptyList()
+    val stories: List<StoryDetailResponse> = emptyList(),
 )
 
 // 2. 친구 얼굴 눌렀을 때 보여줄 "스토리 상세" 정보
