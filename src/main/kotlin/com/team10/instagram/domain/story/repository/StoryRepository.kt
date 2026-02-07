@@ -54,7 +54,7 @@ class StoryRepository(
     // 3. 특정 유저의 스토리 상세 목록 조회
     fun findAllByUserId(targetUserId: Long): List<StoryDetailResponse> {
         val sql = """
-            SELECT s.story_id, s.image_url, s.created_at,
+            SELECT s.story_id, s.user_id, s.image_url, s.created_at,
                    -- 조회수 계산
                    (SELECT COUNT(*) FROM story_view sv WHERE sv.story_id = s.story_id) as view_count
             FROM story s
@@ -124,13 +124,15 @@ class StoryRepository(
                 nickname = rs.getString("nickname"),
                 profileImageUrl = rs.getString("profile_image_url"),
                 hasUnseenStory = rs.getInt("has_unseen") > 0, // 1이면 true
+                stories = emptyList()
             )
         }
 
     private val storyDetailMapper =
         RowMapper { rs, _ ->
             StoryDetailResponse(
-                storyId = rs.getLong("story_id"),
+                id = rs.getLong("story_id"),
+                userId = rs.getLong("user_id"),
                 imageUrl = rs.getString("image_url"),
                 createdAt = rs.getTimestamp("created_at").toLocalDateTime(),
                 viewCount = rs.getInt("view_count"),

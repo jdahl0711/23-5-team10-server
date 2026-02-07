@@ -158,7 +158,7 @@ class StoryIntegrationTest
             // given
             dataGenerator.generateStory(myUser)
             // 삭제할 ID 조회
-            val storyId = storyRepository.findAllByUserId(myUser.userId!!)[0].storyId
+            val storyId = storyRepository.findAllByUserId(myUser.userId!!)[0].id
 
             // when & then
             mvc
@@ -177,7 +177,7 @@ class StoryIntegrationTest
             val otherUser = dataGenerator.generateUser(nickname = "other")
             dataGenerator.generateStory(otherUser)
 
-            val targetStoryId = storyRepository.findAllByUserId(otherUser.userId!!)[0].storyId
+            val targetStoryId = storyRepository.findAllByUserId(otherUser.userId!!)[0].id
 
             // when & then
             mvc

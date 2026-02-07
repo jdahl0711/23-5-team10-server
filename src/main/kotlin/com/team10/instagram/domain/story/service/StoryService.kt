@@ -35,12 +35,18 @@ class StoryService(
         val friendsFeedList = storyRepository.findStoryFeed(loginUserId)
 
         // 3. 리스트 합치기
-        return if (myFeedItem != null) {
+        val combinedList =  if (myFeedItem != null) {
             // 내 스토리가 있으면 맨 앞에 추가
             listOf(myFeedItem) + friendsFeedList
         } else {
             // 없으면 친구들 목록만 반환
             friendsFeedList
+        }
+
+        // 4. 각 유저별로 실제 스토리 목록(stories)을 채워넣기
+        return combinedList.map { feedItem ->
+            val stories = storyRepository.findAllByUserId(feedItem.userId)
+            feedItem.copy(stories = stories)
         }
     }
 
@@ -61,7 +67,7 @@ class StoryService(
         if (loginUserId != targetUserId) {
             return stories.map { story ->
                 // 조회했음을 DB에 기록
-                storyRepository.saveView(loginUserId, story.storyId)
+                storyRepository.saveView(loginUserId, story.id)
 
                 // 조회수는 가려서 반환
                 story.copy(viewCount = null)
